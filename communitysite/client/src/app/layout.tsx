@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ClientLayoutWrapper } from "@/components/layout/ClientLayoutWrapper";
+import { Toaster } from "@/components/ui/toaster";
+import { ConnectionStatus } from "@/components/ui/connection-status";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,6 +35,8 @@ export default function RootLayout({
           <ClientLayoutWrapper>
             {children}
           </ClientLayoutWrapper>
+          <Toaster />
+          <ConnectionStatus />
         </body>
       </html>
     </ClerkProvider>

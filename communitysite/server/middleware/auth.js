@@ -1,125 +1,87 @@
-const jwt = require('jsonwebtoken');
-const { query } = require('../config/database');
+const { getAuth } = require('@clerk/backend');
 
-// Middleware to verify JWT token
-const authenticateToken = async (req, res, next) => {
+/**
+ * Middleware to verify Clerk authentication
+ */
+const requireAuth = async (req, res, next) => {
   try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const auth = getAuth(req);
 
-    if (!token) {
+    if (!auth.userId) {
       return res.status(401).json({
         success: false,
-        message: 'Access token required'
+        message: 'Authentication required',
+        error: 'UNAUTHORIZED'
       });
     }
 
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Get user from database
-    const result = await query(
-      'SELECT id, username, email, first_name, last_name, role, is_active FROM users WHERE id = $1',
-      [decoded.userId]
-    );
+    // Add user info to request object
+    req.auth = auth;
+    req.userId = auth.userId;
 
-    if (result.rows.length === 0) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    const user = result.rows[0];
-
-    if (!user.is_active) {
-      return res.status(401).json({
-        success: false,
-        message: 'Account is deactivated'
-      });
-    }
-
-    req.user = user;
     next();
   } catch (error) {
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token'
-      });
-    }
-    
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Token expired'
-      });
-    }
-
     console.error('Auth middleware error:', error);
-    res.status(500).json({
+    return res.status(401).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Invalid authentication token',
+      error: 'INVALID_TOKEN'
     });
   }
 };
 
-// Middleware to check if user is admin
-const requireAdmin = (req, res, next) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({
-      success: false,
-      message: 'Admin access required'
-    });
-  }
-  next();
-};
-
-// Middleware to check if user is moderator or admin
-const requireModerator = (req, res, next) => {
-  if (!['admin', 'moderator'].includes(req.user.role)) {
-    return res.status(403).json({
-      success: false,
-      message: 'Moderator access required'
-    });
-  }
-  next();
-};
-
-// Optional authentication (doesn't fail if no token)
+/**
+ * Optional authentication middleware - doesn't fail if no auth
+ */
 const optionalAuth = async (req, res, next) => {
   try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const auth = getAuth(req);
 
-    if (!token) {
-      req.user = null;
+    if (auth.userId) {
+      req.auth = auth;
+      req.userId = auth.userId;
+    }
+
+    next();
+  } catch (error) {
+    // Continue without auth if token is invalid
+    next();
+  }
+};
+
+/**
+ * Middleware to get user info from Clerk
+ */
+const getUserInfo = async (req, res, next) => {
+  try {
+    if (!req.userId) {
       return next();
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    const result = await query(
-      'SELECT id, username, email, first_name, last_name, role, is_active FROM users WHERE id = $1',
-      [decoded.userId]
-    );
+    const { clerkClient } = require('@clerk/backend');
+    const user = await clerkClient.users.getUser(req.userId);
 
-    if (result.rows.length > 0 && result.rows[0].is_active) {
-      req.user = result.rows[0];
-    } else {
-      req.user = null;
-    }
+    req.user = {
+      id: user.id,
+      email: user.emailAddresses[0]?.emailAddress,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+      imageUrl: user.imageUrl,
+      username: user.username || user.emailAddresses[0]?.emailAddress?.split('@')[0],
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
 
     next();
   } catch (error) {
-    req.user = null;
-    next();
+    console.error('Get user info error:', error);
+    next(); // Continue without user info
   }
 };
 
 module.exports = {
-  authenticateToken,
-  requireAdmin,
-  requireModerator,
-  optionalAuth
+  requireAuth,
+  optionalAuth,
+  getUserInfo
 };

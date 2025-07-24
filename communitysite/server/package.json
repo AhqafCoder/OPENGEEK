@@ -26,20 +26,19 @@
     "cors": "^2.8.5",
     "helmet": "^7.1.0",
     "dotenv": "^16.3.1",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
     "pg": "^8.11.3",
     "multer": "^1.4.5-lts.1",
     "cloudinary": "^1.41.0",
+    "multer-storage-cloudinary": "^4.0.0",
     "express-rate-limit": "^7.1.5",
     "express-validator": "^7.0.1",
     "morgan": "^1.10.0",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.6",
     "uuid": "^9.0.1",
-    "nodemailer": "^6.9.7",
     "socket.io": "^4.7.4",
-    "redis": "^4.6.10"
+    "@clerk/backend": "^1.15.6",
+    "date-fns": "^3.6.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2",

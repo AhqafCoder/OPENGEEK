@@ -1,286 +1,240 @@
-const bcrypt = require('bcryptjs');
-const { query } = require('../config/database');
+require('dotenv').config();
+const { pool } = require('../config/database');
 
-const seedData = async () => {
+const seedData = {
+  // Sample users (these would normally be created via Clerk webhooks)
+  users: [
+    {
+      id: 'user_sample_1',
+      email: 'john.doe@example.com',
+      username: 'johndoe',
+      first_name: 'John',
+      last_name: 'Doe',
+      full_name: 'John Doe',
+      image_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John',
+      bio: 'Full-stack developer passionate about React and Node.js',
+      location: 'San Francisco, CA',
+      github_username: 'johndoe',
+      is_verified: true
+    },
+    {
+      id: 'user_sample_2',
+      email: 'sarah.wilson@example.com',
+      username: 'sarahw',
+      first_name: 'Sarah',
+      last_name: 'Wilson',
+      full_name: 'Sarah Wilson',
+      image_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
+      bio: 'AI/ML engineer and open source contributor',
+      location: 'New York, NY',
+      github_username: 'sarahw',
+      is_verified: true
+    },
+    {
+      id: 'user_sample_3',
+      email: 'mike.chen@example.com',
+      username: 'mikechen',
+      first_name: 'Mike',
+      last_name: 'Chen',
+      full_name: 'Mike Chen',
+      image_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike',
+      bio: 'DevOps engineer and cloud architecture enthusiast',
+      location: 'Seattle, WA',
+      github_username: 'mikechen',
+      is_verified: false
+    }
+  ],
+  
+  // Sample posts
+  posts: [
+    {
+      user_id: 'user_sample_1',
+      content: 'Just finished building my first React component library! 🎉 Check it out and let me know what you think. It includes 50+ components with full TypeScript support and accessibility features. #webdev #react #opensource',
+      image_url: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&h=400&fit=crop',
+      likes_count: 42,
+      comments_count: 8
+    },
+    {
+      user_id: 'user_sample_2',
+      content: 'Working on a new AI chat application using OpenAI API. The real-time features are coming together nicely! 🤖 Anyone else working with WebSockets and AI integration? #ai #machinelearning #webdev',
+      image_url: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=400&fit=crop',
+      likes_count: 89,
+      comments_count: 15
+    },
+    {
+      user_id: 'user_sample_3',
+      content: 'Finally mastered Docker containers! The deployment process is now so much smoother. Docker-compose makes multi-service apps a breeze 🐳 #docker #devops #containers',
+      likes_count: 67,
+      comments_count: 12
+    },
+    {
+      user_id: 'user_sample_1',
+      content: 'Learning TypeScript has been a game changer for my development workflow. The type safety and IntelliSense support make coding so much more enjoyable! 🔥 #typescript #javascript #webdev',
+      likes_count: 56,
+      comments_count: 9
+    },
+    {
+      user_id: 'user_sample_2',
+      content: 'Just open-sourced my CLI tool for managing environment variables across different projects. Hope it helps other developers! 🛠️ Check it out on GitHub. #opensource #cli #devtools',
+      likes_count: 73,
+      comments_count: 22
+    }
+  ],
+  
+  // Sample projects
+  projects: [
+    {
+      user_id: 'user_sample_1',
+      title: 'React Component Library',
+      description: 'A comprehensive UI component library built with React, TypeScript, and Tailwind CSS. Features 50+ components with full accessibility support.',
+      image_url: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&h=400&fit=crop',
+      github_url: 'https://github.com/johndoe/react-ui-lib',
+      live_url: 'https://react-ui-lib.vercel.app',
+      tags: ['React', 'TypeScript', 'Tailwind CSS', 'UI Library'],
+      language: 'TypeScript',
+      stars_count: 1247,
+      forks_count: 89,
+      is_featured: true,
+      is_approved: true
+    },
+    {
+      user_id: 'user_sample_2',
+      title: 'AI Chat Application',
+      description: 'Real-time chat application with AI integration using OpenAI API. Features include message history, user authentication, and responsive design.',
+      image_url: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=400&fit=crop',
+      github_url: 'https://github.com/sarahw/ai-chat-app',
+      live_url: 'https://ai-chat-demo.vercel.app',
+      tags: ['Next.js', 'OpenAI', 'Socket.io', 'MongoDB'],
+      language: 'JavaScript',
+      stars_count: 892,
+      forks_count: 156,
+      is_featured: true,
+      is_approved: true
+    },
+    {
+      user_id: 'user_sample_3',
+      title: 'DevOps Automation Tool',
+      description: 'CLI tool for automating deployment pipelines with Docker, Kubernetes, and CI/CD integration.',
+      image_url: 'https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?w=800&h=400&fit=crop',
+      github_url: 'https://github.com/mikechen/devops-cli',
+      tags: ['Go', 'Docker', 'Kubernetes', 'CLI'],
+      language: 'Go',
+      stars_count: 789,
+      forks_count: 123,
+      is_featured: false,
+      is_approved: true
+    }
+  ]
+};
+
+async function seedDatabase() {
+  const client = await pool.connect();
+  
   try {
     console.log('🌱 Starting database seeding...');
-
-    // Create admin user
-    const adminPassword = await bcrypt.hash('admin123', 12);
-    await query(
-      `INSERT INTO users (username, email, password_hash, first_name, last_name, role, is_verified)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (email) DO NOTHING`,
-      ['admin', 'admin@opengeek.in', adminPassword, 'Admin', 'User', 'admin', true]
-    );
-
-    // Create sample users
-    const sampleUsers = [
-      {
-        username: 'johndoe',
-        email: 'john@example.com',
-        firstName: 'John',
-        lastName: 'Doe',
-        bio: 'Full-stack developer passionate about React and Node.js',
-        skills: ['JavaScript', 'React', 'Node.js', 'TypeScript'],
-        githubUsername: 'johndoe'
-      },
-      {
-        username: 'sarahwilson',
-        email: 'sarah@example.com',
-        firstName: 'Sarah',
-        lastName: 'Wilson',
-        bio: 'AI/ML enthusiast and Python developer',
-        skills: ['Python', 'Machine Learning', 'TensorFlow', 'Data Science'],
-        githubUsername: 'sarahwilson'
-      },
-      {
-        username: 'mikechen',
-        email: 'mike@example.com',
-        firstName: 'Mike',
-        lastName: 'Chen',
-        bio: 'DevOps engineer and cloud architect',
-        skills: ['Docker', 'Kubernetes', 'AWS', 'Go'],
-        githubUsername: 'mikechen'
-      },
-      {
-        username: 'emilydavis',
-        email: 'emily@example.com',
-        firstName: 'Emily',
-        lastName: 'Davis',
-        bio: 'Mobile app developer specializing in React Native',
-        skills: ['React Native', 'iOS', 'Android', 'Firebase'],
-        githubUsername: 'emilydavis'
-      },
-      {
-        username: 'davidrodriguez',
-        email: 'david@example.com',
-        firstName: 'David',
-        lastName: 'Rodriguez',
-        bio: 'Backend developer and system architect',
-        skills: ['Java', 'Spring Boot', 'PostgreSQL', 'Microservices'],
-        githubUsername: 'davidrodriguez'
-      },
-      {
-        username: 'lisapark',
-        email: 'lisa@example.com',
-        firstName: 'Lisa',
-        lastName: 'Park',
-        bio: 'Data visualization expert and frontend developer',
-        skills: ['D3.js', 'Vue.js', 'Python', 'Data Visualization'],
-        githubUsername: 'lisapark'
-      }
-    ];
-
-    const userIds = [];
-    const defaultPassword = await bcrypt.hash('password123', 12);
-
-    for (const user of sampleUsers) {
-      const result = await query(
-        `INSERT INTO users (username, email, password_hash, first_name, last_name, bio, skills, github_username)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT (email) DO UPDATE SET
-           bio = EXCLUDED.bio,
-           skills = EXCLUDED.skills,
-           github_username = EXCLUDED.github_username
-         RETURNING id`,
-        [user.username, user.email, defaultPassword, user.firstName, user.lastName, 
-         user.bio, user.skills, user.githubUsername]
-      );
-      userIds.push(result.rows[0].id);
+    
+    await client.query('BEGIN');
+    
+    // Clear existing data (in reverse order due to foreign keys)
+    console.log('🧹 Clearing existing data...');
+    await client.query('DELETE FROM comment_likes');
+    await client.query('DELETE FROM post_comments');
+    await client.query('DELETE FROM post_likes');
+    await client.query('DELETE FROM project_stars');
+    await client.query('DELETE FROM projects');
+    await client.query('DELETE FROM posts');
+    await client.query('DELETE FROM users');
+    
+    // Seed users
+    console.log('👥 Seeding users...');
+    for (const user of seedData.users) {
+      await client.query(`
+        INSERT INTO users (id, email, username, first_name, last_name, full_name, image_url, bio, location, github_username, is_verified)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [
+        user.id, user.email, user.username, user.first_name, user.last_name,
+        user.full_name, user.image_url, user.bio, user.location, user.github_username, user.is_verified
+      ]);
     }
-
-    // Create sample projects
-    const sampleProjects = [
-      {
-        title: 'React Component Library',
-        description: 'A comprehensive UI component library built with React, TypeScript, and Tailwind CSS. Features 50+ components with full accessibility support.',
-        content: 'This project aims to provide developers with a complete set of reusable UI components...',
-        imageUrl: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&h=400&fit=crop',
-        githubUrl: 'https://github.com/johndoe/react-ui-lib',
-        liveUrl: 'https://react-ui-lib.vercel.app',
-        tags: ['React', 'TypeScript', 'Tailwind CSS', 'UI Library'],
-        language: 'TypeScript',
-        difficultyLevel: 'intermediate',
-        isFeatured: true,
-        starsCount: 1247,
-        forksCount: 89,
-        authorIndex: 0
-      },
-      {
-        title: 'AI Chat Application',
-        description: 'Real-time chat application with AI integration using OpenAI API. Features include message history, user authentication, and responsive design.',
-        content: 'Built with Next.js and Socket.io for real-time communication...',
-        imageUrl: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=400&fit=crop',
-        githubUrl: 'https://github.com/sarahwilson/ai-chat-app',
-        liveUrl: 'https://ai-chat-demo.vercel.app',
-        tags: ['Next.js', 'OpenAI', 'Socket.io', 'MongoDB'],
-        language: 'JavaScript',
-        difficultyLevel: 'advanced',
-        isFeatured: true,
-        starsCount: 892,
-        forksCount: 156,
-        authorIndex: 1
-      },
-      {
-        title: 'E-commerce Dashboard',
-        description: 'Modern admin dashboard for e-commerce platforms with analytics, inventory management, and order tracking capabilities.',
-        content: 'A comprehensive dashboard solution for e-commerce businesses...',
-        imageUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=400&fit=crop',
-        githubUrl: 'https://github.com/mikechen/ecommerce-dashboard',
-        liveUrl: 'https://ecommerce-dash.netlify.app',
-        tags: ['Vue.js', 'Node.js', 'PostgreSQL', 'Chart.js'],
-        language: 'Vue',
-        difficultyLevel: 'intermediate',
-        isFeatured: false,
-        starsCount: 634,
-        forksCount: 78,
-        authorIndex: 2
-      },
-      {
-        title: 'Mobile Fitness Tracker',
-        description: 'Cross-platform mobile app for fitness tracking with workout plans, progress monitoring, and social features.',
-        content: 'A comprehensive fitness tracking application...',
-        imageUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=400&fit=crop',
-        githubUrl: 'https://github.com/emilydavis/fitness-tracker',
-        liveUrl: null,
-        tags: ['React Native', 'Firebase', 'Redux', 'Health API'],
-        language: 'JavaScript',
-        difficultyLevel: 'intermediate',
-        isFeatured: true,
-        starsCount: 445,
-        forksCount: 67,
-        authorIndex: 3
-      },
-      {
-        title: 'DevOps Automation Tool',
-        description: 'CLI tool for automating deployment pipelines with Docker, Kubernetes, and CI/CD integration.',
-        content: 'Streamline your deployment process with this powerful CLI tool...',
-        imageUrl: 'https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?w=800&h=400&fit=crop',
-        githubUrl: 'https://github.com/davidrodriguez/devops-cli',
-        liveUrl: null,
-        tags: ['Go', 'Docker', 'Kubernetes', 'CLI'],
-        language: 'Go',
-        difficultyLevel: 'advanced',
-        isFeatured: false,
-        starsCount: 789,
-        forksCount: 123,
-        authorIndex: 4
-      },
-      {
-        title: 'Data Visualization Platform',
-        description: 'Interactive data visualization platform with support for multiple chart types, real-time updates, and collaborative features.',
-        content: 'Create stunning data visualizations with this powerful platform...',
-        imageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=400&fit=crop',
-        githubUrl: 'https://github.com/lisapark/data-viz-platform',
-        liveUrl: 'https://dataviz-demo.herokuapp.com',
-        tags: ['D3.js', 'Python', 'Flask', 'WebSocket'],
-        language: 'Python',
-        difficultyLevel: 'advanced',
-        isFeatured: false,
-        starsCount: 567,
-        forksCount: 89,
-        authorIndex: 5
-      }
-    ];
-
-    const projectIds = [];
-    for (const project of sampleProjects) {
-      const result = await query(
-        `INSERT INTO projects (title, description, content, image_url, github_url, live_url,
-                              tags, language, difficulty_level, is_featured, stars_count,
-                              forks_count, author_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-         ON CONFLICT DO NOTHING
-         RETURNING id`,
-        [project.title, project.description, project.content, project.imageUrl,
-         project.githubUrl, project.liveUrl, project.tags, project.language,
-         project.difficultyLevel, project.isFeatured, project.starsCount,
-         project.forksCount, userIds[project.authorIndex]]
-      );
+    
+    // Seed posts
+    console.log('📝 Seeding posts...');
+    for (const post of seedData.posts) {
+      await client.query(`
+        INSERT INTO posts (user_id, content, image_url, likes_count, comments_count)
+        VALUES ($1, $2, $3, $4, $5)
+      `, [post.user_id, post.content, post.image_url, post.likes_count, post.comments_count]);
+    }
+    
+    // Seed projects
+    console.log('🚀 Seeding projects...');
+    for (const project of seedData.projects) {
+      await client.query(`
+        INSERT INTO projects (user_id, title, description, image_url, github_url, live_url, tags, language, stars_count, forks_count, is_featured, is_approved)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `, [
+        project.user_id, project.title, project.description, project.image_url,
+        project.github_url, project.live_url, project.tags, project.language,
+        project.stars_count, project.forks_count, project.is_featured, project.is_approved
+      ]);
+    }
+    
+    // Create some sample likes and comments
+    console.log('❤️  Seeding interactions...');
+    
+    // Get post IDs
+    const postsResult = await client.query('SELECT id, user_id FROM posts ORDER BY created_at');
+    const posts = postsResult.rows;
+    
+    // Add some likes
+    for (let i = 0; i < posts.length; i++) {
+      const post = posts[i];
+      const likers = seedData.users.filter(u => u.id !== post.user_id).slice(0, 2);
       
-      if (result.rows.length > 0) {
-        projectIds.push(result.rows[0].id);
-        
-        // Add project owner as collaborator
-        await query(
-          'INSERT INTO project_collaborators (project_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-          [result.rows[0].id, userIds[project.authorIndex], 'owner']
-        );
+      for (const liker of likers) {
+        await client.query(`
+          INSERT INTO post_likes (post_id, user_id) VALUES ($1, $2)
+          ON CONFLICT (post_id, user_id) DO NOTHING
+        `, [post.id, liker.id]);
       }
     }
-
-    // Create sample posts
-    const samplePosts = [
-      {
-        content: 'Just finished building my first React component library! 🎉 Check it out and let me know what you think. #webdev #react #opensource',
-        postType: 'text',
-        authorIndex: 0
-      },
-      {
-        content: 'Working on a new project using Next.js and Tailwind CSS. The developer experience is amazing! 💻✨ #nextjs #tailwindcss #coding',
-        postType: 'text',
-        authorIndex: 1
-      },
-      {
-        content: 'Just deployed my first full-stack application! Built with Node.js, Express, and MongoDB. Learned so much during this journey. 🚀 #nodejs #webdev #mongodb',
-        postType: 'text',
-        authorIndex: 2
-      },
-      {
-        content: 'Learning TypeScript has been a game changer for my development workflow. The type safety and IntelliSense support make coding so much more enjoyable! 🔥 #typescript #javascript #webdev',
-        postType: 'text',
-        authorIndex: 3
-      },
-      {
-        content: 'Just open-sourced my CLI tool for managing environment variables across different projects. Hope it helps other developers! 🛠️ #opensource #cli #devtools',
-        postType: 'text',
-        authorIndex: 4
-      }
-    ];
-
-    for (const post of samplePosts) {
-      await query(
-        `INSERT INTO posts (content, post_type, author_id)
-         VALUES ($1, $2, $3)
-         ON CONFLICT DO NOTHING`,
-        [post.content, post.postType, userIds[post.authorIndex]]
-      );
+    
+    // Add some comments
+    if (posts.length > 0) {
+      await client.query(`
+        INSERT INTO post_comments (post_id, user_id, content)
+        VALUES 
+          ($1, $2, 'Great work! This looks amazing 🔥'),
+          ($1, $3, 'Thanks for sharing this. Very helpful!'),
+          ($4, $2, 'I''ve been looking for something like this. Awesome job!')
+      `, [posts[0].id, 'user_sample_2', 'user_sample_3', posts[1]?.id || posts[0].id]);
     }
-
-    // Create some follow relationships
-    const followRelationships = [
-      [0, 1], [0, 2], [1, 0], [1, 3], [2, 0], [2, 4], [3, 1], [3, 5], [4, 2], [5, 3]
-    ];
-
-    for (const [followerIndex, followingIndex] of followRelationships) {
-      await query(
-        'INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-        [userIds[followerIndex], userIds[followingIndex]]
-      );
-    }
-
+    
+    await client.query('COMMIT');
+    
     console.log('✅ Database seeding completed successfully!');
-    console.log(`
-📊 Seeded data:
-- 1 Admin user (admin@opengeek.in / admin123)
-- ${sampleUsers.length} Sample users (password: password123)
-- ${sampleProjects.length} Sample projects
-- ${samplePosts.length} Sample posts
-- ${followRelationships.length} Follow relationships
-    `);
-
+    console.log(`📊 Seeded: ${seedData.users.length} users, ${seedData.posts.length} posts, ${seedData.projects.length} projects`);
+    
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('❌ Seeding failed:', error);
-    process.exit(1);
+    throw error;
+  } finally {
+    client.release();
   }
-};
+}
 
 // Run seeding if this file is executed directly
 if (require.main === module) {
-  seedData().then(() => {
-    process.exit(0);
-  });
+  seedDatabase()
+    .then(() => {
+      console.log('🎉 Seeding complete!');
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('💥 Seeding failed:', error);
+      process.exit(1);
+    });
 }
 
-module.exports = { seedData };
+module.exports = { seedDatabase };

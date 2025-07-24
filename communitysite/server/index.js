@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
+const { clerkMiddleware } = require('@clerk/backend');
 
 // Import database connection
 const { pool } = require('./config/database');
@@ -53,6 +54,12 @@ app.use(cookieParser());
 
 // Compression middleware
 app.use(compression());
+
+// Clerk middleware for authentication
+app.use(clerkMiddleware({
+  secretKey: process.env.CLERK_SECRET_KEY,
+  publishableKey: process.env.CLERK_PUBLISHABLE_KEY
+}));
 
 // Logging middleware
 if (process.env.NODE_ENV !== 'production') {

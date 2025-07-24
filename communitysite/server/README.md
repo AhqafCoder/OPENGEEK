@@ -1,10 +1,10 @@
 # OPENGEEK Community Server
 
-Backend API server for the OPENGEEK Community Platform built with Node.js, Express, and PostgreSQL.
+Backend API server for the OPENGEEK Community Platform built with Node.js, Express, PostgreSQL, and Clerk authentication.
 
 ## 🚀 Features
 
-- **Authentication & Authorization**: JWT-based auth with role-based access control
+- **Authentication & Authorization**: Clerk-based authentication with secure user management
 - **User Management**: User profiles, following system, reputation scoring
 - **Project Showcase**: CRUD operations for community projects
 - **Community Feed**: Posts, comments, likes, and bookmarks

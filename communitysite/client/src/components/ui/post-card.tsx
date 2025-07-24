@@ -7,6 +7,7 @@ import { Heart, MessageCircle, Share2 } from 'lucide-react';
 import Image from 'next/image';
 
 interface PostCardProps {
+  id: string;
   user: {
     name: string;
     username: string;
@@ -17,9 +18,21 @@ interface PostCardProps {
   likes: number;
   comments: number;
   image?: string;
+  isLiked?: boolean;
+  onLike?: () => void;
 }
 
-export function PostCard({ user, content, timestamp, likes, comments, image }: PostCardProps) {
+export function PostCard({ 
+  id, 
+  user, 
+  content, 
+  timestamp, 
+  likes, 
+  comments, 
+  image, 
+  isLiked = false,
+  onLike 
+}: PostCardProps) {
   return (
     <Card className="bg-black/50 border-zinc-800/50 backdrop-blur-sm">
       <div className="p-4">
@@ -56,8 +69,17 @@ export function PostCard({ user, content, timestamp, likes, comments, image }: P
 
         {/* Actions */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10">
-            <Heart className="h-4 w-4 mr-1" />
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={onLike}
+            className={`${
+              isLiked 
+                ? 'text-red-500 hover:text-red-400 hover:bg-red-500/10' 
+                : 'text-zinc-400 hover:text-red-400 hover:bg-red-500/10'
+            } transition-colors`}
+          >
+            <Heart className={`h-4 w-4 mr-1 ${isLiked ? 'fill-current' : ''}`} />
             {likes}
           </Button>
           <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10">
