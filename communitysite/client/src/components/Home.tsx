@@ -82,7 +82,7 @@ export default function Home() {
     }
   }, []);
 
-  // Handle new post created - memoized to prevent infinite re-renders
+  // Handle new post created - stable reference to prevent re-registration
   const handlePostCreated = useCallback((newPost: Omit<Post, 'user_id'> & { user_id?: string }) => {
     // Check if newPost is valid - silently return if undefined (initial context call)
     if (!newPost || typeof newPost !== 'object') {
@@ -93,6 +93,8 @@ export default function Home() {
       }
       return;
     }
+
+    console.log('New post received in Home component:', newPost);
 
     // Ensure the newPost has all required properties
     const completePost: Post = {
@@ -113,16 +115,18 @@ export default function Home() {
 
     // Only add if we have essential data
     if (completePost.id && completePost.content) {
+      console.log('Adding new post to feed:', completePost);
       setPosts(prev => [completePost, ...prev]);
-      toast.success('Post added successfully!');
+      toast.success('Post added to feed!');
     } else {
       console.error('Post missing essential data:', completePost);
       toast.error('Failed to add post - missing essential data');
     }
-  }, []);
+  }, []); // Empty dependency array for stable reference
 
-  // Register post creation callback with context
+  // Register post creation callback with context - only run once
   useEffect(() => {
+    console.log('Registering post creation callback');
     setOnPostCreated(handlePostCreated);
   }, [setOnPostCreated, handlePostCreated]);
 

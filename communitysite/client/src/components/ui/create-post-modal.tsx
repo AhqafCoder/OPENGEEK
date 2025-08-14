@@ -128,11 +128,18 @@ export function CreatePostModal({ isOpen, onClose, onPostCreated }: CreatePostMo
         if (onPostCreated && response.data?.post) {
           // Ensure the post has all required properties
           const post = response.data.post;
+          console.log('CreatePostModal: Post created successfully, calling onPostCreated with:', post);
           if (post.id && post.content !== undefined) {
             onPostCreated(post);
           } else {
             console.error('Post missing essential data:', post);
           }
+        } else {
+          console.log('CreatePostModal: onPostCreated callback not available or no post data', {
+            hasCallback: !!onPostCreated,
+            hasPostData: !!response.data?.post,
+            responseData: response.data
+          });
         }
 
         // Close modal

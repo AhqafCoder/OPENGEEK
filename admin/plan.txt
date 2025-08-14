@@ -1,0 +1,98 @@
+# Admin Page Development Plan
+
+## Tech Stack
+- Frontend: React + TypeScript + Tailwind CSS (Vite)
+- UI Components: Shadcn UI (built on Radix UI) + Lucide React
+- Backend: Express.js (Node.js)
+- Database: PostgreSQL (all data is stored in the same database as the main site)
+- Extras: React Router, Axios, React Hook Form, Chart.js/Recharts
+
+---
+
+## Phase 1: Backend API Development
+1. Project Setup
+   - Initialize Express server with CORS, dotenv, JSON parsing
+   - Connect to database
+   - Setup environment variables (.env)
+
+2. Authentication & Authorization
+   - Admin login endpoint (POST /admin/login)
+   - JWT-based authentication
+   - Middleware:
+     - authMiddleware → checks token validity
+     - adminOnly → restricts routes to admin role
+
+3. User Management API
+   - GET /users → List all users
+   - GET /users/:id → Get user details
+   - POST /users → Add user
+   - PUT /users/:id → Update user
+   - DELETE /users/:id → Delete user
+
+4. Content Management API
+   - GET /content → List all content
+   - POST /content → Add new content
+   - PUT /content/:id → Update content
+   - DELETE /content/:id → Delete content
+
+5. Dashboard Statistics API
+   - GET /dashboard/stats → Returns:
+     - Total users
+     - Total content
+     - Active users
+     - New signups this month
+
+6. Error Handling
+   - Global error handler middleware
+   - Input validation (Joi/Zod)
+
+7. Security
+   - Role-based access control
+   - Input sanitization
+   - Rate limiting & Helmet middleware
+
+---
+
+## Phase 2: Frontend Admin Structure with Shadcn UI
+1. Layout Components
+   - Sidebar (Navigation Menu / Sheet for mobile)
+   - Header (Avatar, Dropdown Menu, Logout)
+   - Main content container
+
+2. Authentication Flow
+   - Login Page (Shadcn Card, Input, Button)
+   - Protected routes (React Router)
+
+3. Dashboard
+   - Stats cards (Shadcn Card + icons)
+   - Charts (Chart.js/Recharts in Shadcn Card)
+   - Recent activity table
+
+4. User Management
+   - User list (Shadcn Data Table with search/sort/filter)
+   - User detail view (Card layout)
+   - Add/Edit user form (Form component with validation)
+
+5. Content Management
+   - Content list (Data Table)
+   - Add/Edit content form (Form + Textarea)
+
+---
+
+## Phase 3: UI/UX Enhancements with Shadcn
+1. Responsive design
+2. Loading states (Skeleton, Spinner)
+3. Error toasts
+4. Confirmation dialogs (Dialog component)
+5. Dark mode toggle
+
+---
+
+## Phase 4: Security & Deployment
+1. Authentication validation on frontend
+2. Role-based permissions
+3. Secure API endpoints
+4. Deployment:
+   - Frontend → Vercel
+   - Backend → Render
+   - Environment variables for production

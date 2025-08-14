@@ -1,5 +1,5 @@
-import axios from 'axios';
-import { getAuthToken } from './token-manager';
+import axios, { AxiosRequestConfig } from 'axios';
+import { getAuthToken, isTokenStale, requestFreshToken } from './token-manager';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -11,28 +11,72 @@ const api = axios.create({
   },
 });
 
-// Add Clerk token to requests
+// Helper function to check if this is a long operation that needs fresh token
+const isLongOperation = (config: AxiosRequestConfig) => {
+  const longOperationPaths = ['/posts', '/projects', '/users/profile'];
+  const isFormData = config.headers?.['Content-Type']?.includes('multipart/form-data');
+  const isLongPath = longOperationPaths.some(path => config.url?.includes(path));
+  const isWriteOperation = ['POST', 'PUT', 'PATCH'].includes(config.method?.toUpperCase() || '');
+
+  return (isFormData || (isLongPath && isWriteOperation));
+};
+
+// Add Clerk token to requests with proactive refresh for long operations
 api.interceptors.request.use(async (config) => {
+  // For long operations, request a fresh token proactively
+  if (isLongOperation(config)) {
+    console.log('Long operation detected, requesting fresh token...');
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('token-refresh-needed'));
+      // Give a moment for the token to refresh
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+
   const token = getAuthToken();
-  
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  
+
   return config;
 });
 
-// Simple response interceptor - let Clerk handle token refresh
+// Enhanced response interceptor with retry logic for token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // For 401 errors, just redirect to sign-in and let Clerk handle it
-    if (error.response?.status === 401) {
+    const originalRequest = error.config;
+
+    // For 401 errors, try to refresh token once before giving up
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      console.log('401 error detected, attempting token refresh...');
+
+      if (typeof window !== 'undefined') {
+        // Request fresh token
+        window.dispatchEvent(new CustomEvent('token-refresh-needed'));
+
+        // Wait a bit for token refresh
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Get the refreshed token
+        const newToken = getAuthToken();
+
+        if (newToken) {
+          console.log('Retrying request with fresh token...');
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return api(originalRequest);
+        }
+      }
+
+      // If token refresh failed, redirect to sign-in
       if (typeof window !== 'undefined') {
         window.location.href = '/sign-in';
       }
     }
-    
+
     return Promise.reject(error);
   }
 );
@@ -56,30 +100,32 @@ export const postsAPI = {
     return response.data;
   },
 
-  // Create new post
+  // Create new post with fresh token guarantee for image uploads
   createPost: async (data: { content: string; image?: File }) => {
-    const formData = new FormData();
-    formData.append('content', data.content);
-    
-    if (data.image) {
-      formData.append('image', data.image);
-      console.log('Uploading post with image:', {
-        contentLength: data.content.length,
-        imageName: data.image.name,
-        imageSize: data.image.size,
-        imageType: data.image.type
-      });
-    } else {
-      console.log('Uploading post without image');
-    }
+    return withFreshToken(async () => {
+      const formData = new FormData();
+      formData.append('content', data.content);
 
-    const response = await api.post('/posts', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-      timeout: 30000, // 30 second timeout for image uploads
+      if (data.image) {
+        formData.append('image', data.image);
+        console.log('Uploading post with image (fresh token):', {
+          contentLength: data.content.length,
+          imageName: data.image.name,
+          imageSize: data.image.size,
+          imageType: data.image.type
+        });
+      } else {
+        console.log('Creating post without image (fresh token)');
+      }
+
+      const response = await api.post('/posts', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 60000, // Increased to 60 second timeout for image uploads
+      });
+      return response.data;
     });
-    return response.data;
   },
 
   // Update post
@@ -133,7 +179,7 @@ export const projectsAPI = {
     return response.data;
   },
 
-  // Create new project
+  // Create new project with fresh token guarantee
   createProject: async (data: {
     title: string;
     description: string;
@@ -143,8 +189,11 @@ export const projectsAPI = {
     tags: string[];
     language: string;
   }) => {
-    const response = await api.post('/projects', data);
-    return response.data;
+    return withFreshToken(async () => {
+      console.log('Creating project with fresh token...');
+      const response = await api.post('/projects', data);
+      return response.data;
+    });
   },
 
   // Update project
@@ -173,6 +222,19 @@ export const projectsAPI = {
   },
 };
 
+// Helper function for critical operations that need fresh tokens
+const withFreshToken = async <T>(operation: () => Promise<T>): Promise<T> => {
+  // If token is stale, request a fresh one and wait
+  if (isTokenStale()) {
+    console.log('Token is stale, requesting fresh token before critical operation...');
+    requestFreshToken();
+    // Wait for token refresh
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+
+  return operation();
+};
+
 export const usersAPI = {
   // Debug token verification
   debugToken: async () => {
@@ -186,7 +248,7 @@ export const usersAPI = {
     return response.data;
   },
 
-  // Update user profile
+  // Update user profile with fresh token guarantee
   updateProfile: async (data: {
     firstName?: string;
     lastName?: string;
@@ -198,8 +260,11 @@ export const usersAPI = {
     twitterUsername?: string;
     linkedinUsername?: string;
   }) => {
-    const response = await api.put('/users/profile', data);
-    return response.data;
+    return withFreshToken(async () => {
+      console.log('Updating profile with fresh token...');
+      const response = await api.put('/users/profile', data);
+      return response.data;
+    });
   },
 
   // Get user profile by username

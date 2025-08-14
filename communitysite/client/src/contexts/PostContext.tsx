@@ -28,9 +28,14 @@ const PostContext = createContext<PostContextType | undefined>(undefined);
 export function PostProvider({ children }: { children: ReactNode }) {
   const [onPostCreated, setOnPostCreated] = useState<((post: Post) => void) | undefined>();
 
+  const wrappedSetOnPostCreated = (callback: (post: Post) => void) => {
+    console.log('PostContext: Setting new onPostCreated callback');
+    setOnPostCreated(() => callback);
+  };
+
   const contextValue = useMemo(() => ({
     onPostCreated,
-    setOnPostCreated
+    setOnPostCreated: wrappedSetOnPostCreated
   }), [onPostCreated]);
 
   return (

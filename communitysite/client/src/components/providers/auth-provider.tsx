@@ -12,14 +12,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const { getToken, isSignedIn } = useAuth();
 
   useEffect(() => {
-    const updateToken = async () => {
+    let refreshInterval: NodeJS.Timeout | null = null;
+
+    const updateToken = async (skipCache = false) => {
       if (isSignedIn) {
         try {
-          // Get fresh token from Clerk - let Clerk handle all expiration logic
-          const token = await getToken();
+          // Use skipCache to get fresh token when needed
+          const token = await getToken({ skipCache });
           
           if (token) {
             setAuthToken(token);
+            console.log('Token updated successfully', skipCache ? '(fresh)' : '(cached)');
           } else {
             clearAuthToken();
           }
@@ -32,12 +35,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     };
 
-    // Initial token fetch
-    updateToken();
-
-    // Listen for token refresh events from API interceptor
-    const handleTokenRefresh = () => {
+    const startTokenRefresh = () => {
+      // Initial token fetch
       updateToken();
+
+      // Set up proactive token refresh every 45 seconds
+      refreshInterval = setInterval(() => {
+        if (isSignedIn) {
+          console.log('Proactively refreshing token...');
+          updateToken(true); // Skip cache to get fresh token
+        }
+      }, 45000); // 45 seconds
+    };
+
+    const stopTokenRefresh = () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+      }
+    };
+
+    if (isSignedIn) {
+      startTokenRefresh();
+    } else {
+      stopTokenRefresh();
+    }
+
+    // Listen for manual token refresh requests
+    const handleTokenRefresh = () => {
+      console.log('Manual token refresh requested');
+      updateToken(true);
     };
 
     if (typeof window !== 'undefined') {
@@ -45,6 +72,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     return () => {
+      stopTokenRefresh();
       if (typeof window !== 'undefined') {
         window.removeEventListener('token-refresh-needed', handleTokenRefresh);
       }
