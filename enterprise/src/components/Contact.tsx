@@ -30,9 +30,9 @@ export default function Contact() {
         <section id="contact" className="py-20 bg-gray-900">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="text-center mb-12 md:mb-16">
-                    <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 px-4">Get In Touch</h2>
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 px-4">Get In Touch</h2>
                     <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto px-4">
-                        Ready to get the IT services you need for your business? Contact OpenGeek Enterprise today 
+                        Ready to get the IT services you need for your business? Contact OpenGeek Enterprise today
                         for a free consultation and let's discuss how we can help your business grow.
                     </p>
                 </div>
@@ -117,7 +117,7 @@ export default function Contact() {
                     </div>
 
                     {/* Contact Form */}
-                    <div className="bg-gray-800 rounded-2xl shadow-xl p-6 lg:p-8 border border-gray-700 mx-4 lg:mx-0">
+                    <div className="bg-gray-800 rounded-2xl shadow-xl p-6 lg:p-7 border border-gray-700 mx-4 lg:mx-0">
                         <h3 className="text-xl sm:text-2xl font-bold text-white mb-4 lg:mb-6">Send Us a Message</h3>
                         
                         <form onSubmit={handleSubmit} className="space-y-4 lg:space-y-6">
@@ -218,7 +218,7 @@ export default function Contact() {
                                     id="message"
                                     name="message"
                                     required
-                                    rows={5}
+                                    rows={3}
                                     value={formData.message}
                                     onChange={handleChange}
                                     className="w-full px-4 py-3 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -228,7 +228,7 @@ export default function Contact() {
 
                             <button
                                 type="submit"
-                                className="w-full bg-blue-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:bg-blue-500 transition-all duration-300 hover:transform hover:-translate-y-1"
+                                className="w-full bg-blue-600 text-white sm:px-8 py-3 rounded-lg text-base sm:text-lg font-semibold hover:bg-blue-500 transition-all duration-300 hover:transform hover:-translate-y-1"
                             >
                                 Send Message
                             </button>
